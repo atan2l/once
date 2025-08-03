@@ -32,6 +32,7 @@ use webpki::aws_lc_rs::{
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
+    env_logger::init();
 
     let crypto_provider = create_crypto_provider();
     let root_cert_store = create_root_cert_store();
