@@ -6,7 +6,12 @@ use crate::app_state::AppState;
 use crate::middleware::client_cert_auth::{AuthAcceptor, client_cert_middleware};
 use axum::Router;
 use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
+use axum_session::{SessionConfig, SessionLayer, SessionStore};
+use axum_session_redispool::SessionRedisPool;
 use jsonwebtoken_aws_lc::EncodingKey;
+use redis::Client;
+use redis::aio::MultiplexedConnection;
+use redis_pool::RedisPool;
 use rustls::crypto::aws_lc_rs::cipher_suite::{
     TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
     TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
@@ -51,11 +56,21 @@ async fn main() {
         jwt_private_key: load_jwt_key(jwt_key_ext, &jwt_key_file),
     };
 
+    let redis_pool = create_redis_pool();
+    let session_store = SessionStore::<SessionRedisPool>::new(
+        Some(redis_pool.clone().into()),
+        SessionConfig::default(),
+    )
+    .await
+    .unwrap();
+
     let config = RustlsConfig::from_config(server_config);
     let app = Router::new()
         .merge(routes::create_routes())
         .route_layer(axum::middleware::from_fn(client_cert_middleware))
-        .with_state(app_state);
+        .layer(SessionLayer::new(session_store))
+        .with_state(app_state)
+        .with_state(redis_pool);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8443));
     axum_server::bind(addr)
@@ -180,6 +195,12 @@ fn load_jwt_key(ext: &str, path: &PathBuf) -> EncodingKey {
         "der" => EncodingKey::from_rsa_der(&jwt_key),
         _ => panic!("Invalid JWT key extension: {}", ext),
     }
+}
+
+fn create_redis_pool() -> RedisPool<Client, MultiplexedConnection> {
+    let redis_url = dotenvy::var("REDIS_URL").expect("REDIS_URL environment variable not set.");
+    let client = Client::open(redis_url).expect("Error while trying to open the redis connection");
+    RedisPool::from(client)
 }
 
 static SUPPORTED_SIG_ALGORITHMS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorithms {

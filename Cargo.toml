@@ -21,3 +21,7 @@ chrono = { version = "0.4.41", features = ["serde"] }
 env_logger = "0.11.8"
 oxide-auth = "0.6.1"
 oxide-auth-axum = "0.6.0"
+axum_session = "0.16.0"
+axum_session_redispool = "0.6.0"
+redis = "0.29.5"
+redis_pool = "0.8.0"
