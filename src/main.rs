@@ -1,11 +1,13 @@
 mod app_state;
 mod middleware;
 mod routes;
+mod schema;
 
 use crate::app_state::AppState;
 use crate::middleware::client_cert_auth::{AuthAcceptor, client_cert_middleware};
 use axum::Router;
 use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
+use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use jsonwebtoken_aws_lc::EncodingKey;
 use rustls::crypto::aws_lc_rs::cipher_suite::{
     TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
@@ -41,14 +43,19 @@ async fn main() {
     let server_config = create_server_config(crypto_provider, client_cert_verifier);
 
     let jwt_key_file =
-        PathBuf::from(dotenvy::var("JWT_PRIVATE_KEY").expect("Environment variable not set"));
+        PathBuf::from(dotenvy::var("JWT_PRIVATE_KEY").expect("JWT_PRIVATE_KEY variable not set"));
     let jwt_key_ext = jwt_key_file
         .extension()
         .and_then(|e| e.to_str())
         .expect("Invalid extension");
 
+    let db_url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL variable not set");
+    let config = AsyncDieselConnectionManager::new(db_url);
+    let db_pool = bb8::Pool::builder().build(config).await.unwrap();
+
     let app_state = AppState {
         jwt_private_key: load_jwt_key(jwt_key_ext, &jwt_key_file),
+        db_pool,
     };
 
     let config = RustlsConfig::from_config(server_config);
