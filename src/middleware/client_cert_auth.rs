@@ -15,7 +15,7 @@ use x509_parser::oid_registry::{OID_X509_GIVEN_NAME, OID_X509_SERIALNUMBER, OID_
 use x509_parser::prelude::FromDer;
 
 #[derive(Clone)]
-pub struct ClientCertData {
+pub(crate) struct ClientCertData {
     pub given_name: String,
     pub surname: String,
     pub serial_number: String,
@@ -23,10 +23,10 @@ pub struct ClientCertData {
 }
 
 #[derive(Clone)]
-pub struct PeerCertificates<'a>(Option<Vec<CertificateDer<'a>>>);
+pub(crate) struct PeerCertificates<'a>(Option<Vec<CertificateDer<'a>>>);
 
 #[derive(Clone)]
-pub struct AuthAcceptor {
+pub(crate) struct AuthAcceptor {
     inner: RustlsAcceptor,
 }
 

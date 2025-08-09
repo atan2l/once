@@ -1,12 +1,16 @@
 mod app_state;
 mod middleware;
+mod models;
+mod oauth;
 mod routes;
 mod schema;
 
 use crate::app_state::AppState;
 use crate::middleware::client_cert_auth::{AuthAcceptor, client_cert_middleware};
+use crate::oauth::pg_registrar::PgRegistrar;
 use axum::Router;
 use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
+use diesel_async::AsyncPgConnection;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use jsonwebtoken_aws_lc::EncodingKey;
 use rustls::crypto::aws_lc_rs::cipher_suite::{
@@ -31,6 +35,8 @@ use webpki::aws_lc_rs::{
     RSA_PKCS1_2048_8192_SHA384, RSA_PKCS1_2048_8192_SHA512,
 };
 
+pub(crate) type Pool = bb8::Pool<AsyncDieselConnectionManager<AsyncPgConnection>>;
+
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
@@ -51,11 +57,13 @@ async fn main() {
 
     let db_url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL variable not set");
     let config = AsyncDieselConnectionManager::new(db_url);
-    let db_pool = bb8::Pool::builder().build(config).await.unwrap();
+    let db_pool = Arc::new(bb8::Pool::builder().build(config).await.unwrap());
+
+    let registrar = Arc::new(PgRegistrar::new(db_pool.clone()));
 
     let app_state = AppState {
         jwt_private_key: load_jwt_key(jwt_key_ext, &jwt_key_file),
-        db_pool,
+        registrar,
     };
 
     let config = RustlsConfig::from_config(server_config);
@@ -142,10 +150,10 @@ fn create_root_cert_store() -> Arc<RootCertStore> {
     let mut root_cert_store = RootCertStore::empty();
 
     for cert in cert_files.flatten() {
-        if let Some(ext) = cert.path().extension().and_then(|e| e.to_str()) {
-            if SUPPORTED_CERT_EXTENSIONS.contains(&ext) {
-                add_certificate(&mut root_cert_store, ext, cert.path());
-            }
+        if let Some(ext) = cert.path().extension().and_then(|e| e.to_str())
+            && SUPPORTED_CERT_EXTENSIONS.contains(&ext)
+        {
+            add_certificate(&mut root_cert_store, ext, cert.path());
         }
     }
 

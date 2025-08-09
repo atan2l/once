@@ -1,11 +1,9 @@
-use diesel_async::AsyncPgConnection;
-use diesel_async::pooled_connection::AsyncDieselConnectionManager;
+use crate::oauth::pg_registrar::PgRegistrar;
 use jsonwebtoken_aws_lc::EncodingKey;
-
-type Pool = bb8::Pool<AsyncDieselConnectionManager<AsyncPgConnection>>;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub(crate) struct AppState {
     pub(crate) jwt_private_key: EncodingKey,
-    pub(crate) db_pool: Pool
+    pub(crate) registrar : Arc<PgRegistrar>
 }
