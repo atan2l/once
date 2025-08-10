@@ -13,6 +13,8 @@ use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
 use diesel_async::AsyncPgConnection;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use jsonwebtoken_aws_lc::EncodingKey;
+use oxide_auth::primitives::authorizer::AuthMap;
+use oxide_auth::primitives::generator::{AssertionKind, RandomGenerator};
 use rustls::crypto::aws_lc_rs::cipher_suite::{
     TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
     TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
@@ -30,6 +32,7 @@ use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 use webpki::aws_lc_rs::{
     ECDSA_P256_SHA256, ECDSA_P384_SHA384, ECDSA_P521_SHA512, RSA_PKCS1_2048_8192_SHA256,
     RSA_PKCS1_2048_8192_SHA384, RSA_PKCS1_2048_8192_SHA512,
@@ -60,10 +63,12 @@ async fn main() {
     let db_pool = Arc::new(bb8::Pool::builder().build(config).await.unwrap());
 
     let registrar = Arc::new(PgRegistrar::new(db_pool.clone()));
+    let authorizer = Arc::new(RwLock::new(AuthMap::new(RandomGenerator::new(16))));
 
     let app_state = AppState {
         jwt_private_key: load_jwt_key(jwt_key_ext, &jwt_key_file),
         registrar,
+        authorizer,
     };
 
     let config = RustlsConfig::from_config(server_config);
