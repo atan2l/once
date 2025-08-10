@@ -1,14 +1,15 @@
+use crate::Pool;
 use crate::models::{AuthClient, ClientRedirectUri};
 use crate::schema::auth_clients::dsl::*;
 use crate::schema::client_allowed_scopes::dsl::client_allowed_scopes;
 use crate::schema::client_allowed_scopes::scope;
 use crate::schema::client_redirect_uris::uri;
-use crate::Pool;
 use async_trait::async_trait;
 use diesel::associations::HasTable;
 use diesel::dsl::{exists, select};
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
+use log::debug;
 use oxide_auth::endpoint::{PreGrant, Scope};
 use oxide_auth::primitives::prelude::ClientUrl;
 use oxide_auth::primitives::registrar::{BoundClient, RegisteredUrl, RegistrarError};
@@ -28,6 +29,7 @@ impl PgRegistrar {
     }
 
     async fn get_auth_client(&self, client_id: &str) -> Result<AuthClient, RegistrarError> {
+        debug!("Getting auth client for {}", client_id);
         let pool = self.db_pool.clone();
         let mut pool = pool.get().await.map_err(|_| RegistrarError::Unspecified)?;
 
@@ -50,6 +52,14 @@ impl Registrar for PgRegistrar {
         let mut pool = pool.get().await.map_err(|_| RegistrarError::Unspecified)?;
         let auth_client = self.get_auth_client(&bound.client_id).await?;
 
+        debug!("Bound redirect with client_id \"{}\"", &bound.client_id);
+        debug!(
+            "Bound redirect with redirect_uri \"{}\"",
+            match &bound.redirect_uri {
+                Some(u) => u.as_str(),
+                None => "None",
+            }
+        );
         let client_uri = ClientRedirectUri::belonging_to(&auth_client)
             .filter(
                 uri.eq(bound
@@ -61,6 +71,7 @@ impl Registrar for PgRegistrar {
             .first(&mut pool)
             .await
             .map_err(|_| RegistrarError::Unspecified)?;
+        debug!("Valid redirect URI found");
 
         let registered_uri = RegisteredUrl::Exact(
             client_uri
@@ -89,15 +100,17 @@ impl Registrar for PgRegistrar {
         } else {
             &auth_client.default_scope
         };
+        debug!("Negotiated scope \"{}\"", client_scope);
 
         let allowed_scope_exists = select(exists(
             client_allowed_scopes::table().filter(scope.eq(client_scope)),
         ))
         .get_result::<bool>(&mut pool)
         .await
-        .map_err(|_| RegistrarError::Unspecified)?;
+        .map_err(|_| RegistrarError::Unspecified)? || client_scope == &auth_client.default_scope;
 
         if allowed_scope_exists {
+            debug!("Allowed scope found");
             Ok(PreGrant {
                 client_id: client.client_id.into_owned(),
                 redirect_uri: client.redirect_uri.into_owned(),
@@ -106,6 +119,7 @@ impl Registrar for PgRegistrar {
                     .map_err(|_| RegistrarError::Unspecified)?,
             })
         } else {
+            debug!("Allowed scope not found");
             Err(RegistrarError::Unspecified)
         }
     }
@@ -120,9 +134,11 @@ impl Registrar for PgRegistrar {
         if auth_client.confidential
             && let Some(_) = passphrase
         {
+            debug!("Client is confidential");
             // TODO: Check passphrase with Argon2 or similar
             Ok(())
         } else {
+            debug!("Client is public");
             Ok(())
         }
     }

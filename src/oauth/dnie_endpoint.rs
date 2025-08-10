@@ -2,7 +2,11 @@ use oxide_auth::endpoint;
 use oxide_auth::endpoint::{OAuthError, Scope, Template, WebRequest};
 use oxide_auth::primitives::authorizer::AuthMap;
 use oxide_auth::primitives::prelude::RandomGenerator;
+use oxide_auth_async::endpoint::access_token::AccessTokenFlow;
 use oxide_auth_async::endpoint::authorization::AuthorizationFlow;
+use oxide_auth_async::endpoint::client_credentials::ClientCredentialsFlow;
+use oxide_auth_async::endpoint::refresh::RefreshFlow;
+use oxide_auth_async::endpoint::resource::ResourceFlow;
 use oxide_auth_async::endpoint::{Endpoint, OwnerSolicitor};
 use oxide_auth_async::primitives;
 use oxide_auth_async::primitives::Authorizer;
@@ -53,6 +57,34 @@ where
 
     pub fn authorization_flow(self) -> AuthorizationFlow<Self, OAuthRequest> {
         match AuthorizationFlow::prepare(self) {
+            Ok(flow) => flow,
+            Err(_) => unreachable!(),
+        }
+    }
+
+    pub fn access_token_flow(self) -> AccessTokenFlow<Self, OAuthRequest> {
+        match AccessTokenFlow::prepare(self) {
+            Ok(flow) => flow,
+            Err(_) => unreachable!(),
+        }
+    }
+
+    pub fn client_credentials_flow(self) -> ClientCredentialsFlow<Self, OAuthRequest> {
+        match ClientCredentialsFlow::prepare(self) {
+            Ok(flow) => flow,
+            Err(_) => unreachable!(),
+        }
+    }
+
+    pub fn refresh_flow(self) -> RefreshFlow<Self, OAuthRequest> {
+        match RefreshFlow::prepare(self) {
+            Ok(flow) => flow,
+            Err(_) => unreachable!(),
+        }
+    }
+
+    pub fn resource_flow(self) -> ResourceFlow<Self, OAuthRequest> {
+        match ResourceFlow::prepare(self) {
             Ok(flow) => flow,
             Err(_) => unreachable!(),
         }

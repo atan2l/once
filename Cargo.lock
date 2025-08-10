@@ -1919,6 +1919,7 @@ dependencies = [
  "env_logger",
  "futures-util",
  "jsonwebtoken-aws-lc",
+ "log",
  "oxide-auth",
  "oxide-auth-async",
  "oxide-auth-axum",

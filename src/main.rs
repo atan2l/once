@@ -80,12 +80,12 @@ async fn main() {
     let config = RustlsConfig::from_config(server_config);
     let app = Router::new()
         .merge(routes::create_routes())
-        .route_layer(axum::middleware::from_fn(client_cert_middleware))
+        //.route_layer(axum::middleware::from_fn(client_cert_middleware))
         .with_state(app_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8443));
     axum_server::bind(addr)
-        .acceptor(AuthAcceptor::new(RustlsAcceptor::new(config)))
+        //.acceptor(AuthAcceptor::new(RustlsAcceptor::new(config)))
         .serve(app.into_make_service())
         .await
         .unwrap()
