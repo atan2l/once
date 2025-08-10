@@ -8,11 +8,13 @@ mod schema;
 use crate::app_state::AppState;
 use crate::middleware::client_cert_auth::{AuthAcceptor, client_cert_middleware};
 use crate::oauth::pg_registrar::PgRegistrar;
+use crate::oauth::rsa_jwt_issuer::RsaJwtIssuer;
 use axum::Router;
 use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
+use chrono::Duration;
 use diesel_async::AsyncPgConnection;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
-use jsonwebtoken_aws_lc::EncodingKey;
+use jsonwebtoken_aws_lc::{DecodingKey, EncodingKey};
 use oxide_auth::primitives::authorizer::AuthMap;
 use oxide_auth::primitives::generator::{AssertionKind, RandomGenerator};
 use rustls::crypto::aws_lc_rs::cipher_suite::{
@@ -51,9 +53,16 @@ async fn main() {
         create_client_cert_verifier(root_cert_store, crypto_provider.clone());
     let server_config = create_server_config(crypto_provider, client_cert_verifier);
 
-    let jwt_key_file =
+    let jwt_enc_file =
         PathBuf::from(dotenvy::var("JWT_PRIVATE_KEY").expect("JWT_PRIVATE_KEY variable not set"));
-    let jwt_key_ext = jwt_key_file
+    let jwt_enc_ext = jwt_enc_file
+        .extension()
+        .and_then(|e| e.to_str())
+        .expect("Invalid extension");
+
+    let jwt_dec_file =
+        PathBuf::from(dotenvy::var("JWT_PUBLIC_KEY").expect("JWT_PUBLIC_KEY variable not set"));
+    let jwt_dec_ext = jwt_dec_file
         .extension()
         .and_then(|e| e.to_str())
         .expect("Invalid extension");
@@ -65,10 +74,21 @@ async fn main() {
     let registrar = Arc::new(PgRegistrar::new(db_pool.clone()));
     let authorizer = Arc::new(RwLock::new(AuthMap::new(RandomGenerator::new(16))));
 
+    let enc_key = load_enc_key(jwt_enc_ext, &jwt_enc_file);
+    let dec_key = load_dec_key(jwt_dec_ext, &jwt_dec_file);
+
+    let issuer = Arc::new(RsaJwtIssuer::new(
+        enc_key,
+        dec_key,
+        "KEY-ID",
+        "ISSUER",
+        Duration::minutes(15),
+    ));
+
     let app_state = AppState {
-        jwt_private_key: load_jwt_key(jwt_key_ext, &jwt_key_file),
         registrar,
         authorizer,
+        issuer,
     };
 
     let config = RustlsConfig::from_config(server_config);
@@ -189,7 +209,7 @@ fn load_certificate<'a>(ext: &str, path: &PathBuf) -> CertificateDer<'a> {
     }
 }
 
-fn load_jwt_key(ext: &str, path: &PathBuf) -> EncodingKey {
+fn load_enc_key(ext: &str, path: &PathBuf) -> EncodingKey {
     let mut jwt_key = vec![];
     File::open(path)
         .expect("Failed to open file.")
@@ -198,6 +218,20 @@ fn load_jwt_key(ext: &str, path: &PathBuf) -> EncodingKey {
     match ext {
         "pem" => EncodingKey::from_rsa_pem(&jwt_key).expect("Failed to parse PEM file."),
         "der" => EncodingKey::from_rsa_der(&jwt_key),
+        _ => panic!("Invalid JWT key extension: {}", ext),
+    }
+}
+
+fn load_dec_key(ext: &str, path: &PathBuf) -> DecodingKey {
+    let mut jwt_key = vec![];
+    File::open(path)
+        .expect("Failed to open file.")
+        .read_to_end(&mut jwt_key)
+        .expect("Failed to read file.");
+
+    match ext {
+        "pem" => DecodingKey::from_rsa_pem(&jwt_key).expect("Failed to parse PEM file."),
+        "der" => DecodingKey::from_rsa_der(&jwt_key),
         _ => panic!("Invalid JWT key extension: {}", ext),
     }
 }
