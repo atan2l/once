@@ -7,24 +7,24 @@ edition = "2024"
 axum = "0.8"
 axum-server = { version = "0.7", features = ["tls-rustls"], default-features = false }
 tower = "0.5"
-tokio = { version = "1.45", features = ["rt", "rt-multi-thread", "macros"] }
+tokio = { version = "1.48", features = ["rt", "rt-multi-thread", "macros"] }
 tokio-rustls = { version = "0.26", features = ["aws-lc-rs", "tls12", "logging"], default-features = false }
 rustls = { version = "0.23", features = ["tls12"], default-features = false }
-rustls-pki-types = { version = "1.12", default-features = false }
+rustls-pki-types = { version = "1.13", default-features = false }
 rustls-webpki = { version = "0.103", features = ["aws-lc-rs"], default-features = false }
 futures-util = "0.3"
-x509-parser = "0.17"
+x509-parser = "0.18"
 dotenvy = "0.15"
 jsonwebtoken-aws-lc = "9.3.0"
-serde = { version = "1.0.219", features = ["derive"] }
-chrono = { version = "0.4.41", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
 env_logger = "0.11.8"
 oxide-auth = "0.6.1"
 oxide-auth-axum = "0.6.0"
 oxide-auth-async = "0.2.1"
-uuid = { version = "1.17.0", features = ["serde"] }
-diesel = { version = "2.2.12", features = ["uuid", "postgres"] }
-diesel-async = { version = "0.6.1", features = ["postgres", "bb8"] }
+uuid = { version = "1.18", features = ["serde"] }
+diesel = { version = "2.3", features = ["uuid", "postgres"] }
+diesel-async = { version = "0.7", features = ["postgres", "bb8"] }
 bb8 = "0.9.0"
 async-trait = "0.1.88"
 log = "0.4.27"
