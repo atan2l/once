@@ -1,7 +1,7 @@
 mod middleware;
 mod routes;
 
-use crate::middleware::client_cert_auth::{client_cert_middleware, AuthAcceptor};
+use crate::middleware::client_cert_auth::{AuthAcceptor, client_cert_middleware};
 use axum::Router;
 use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
 use rustls::crypto::aws_lc_rs::cipher_suite::{
@@ -10,8 +10,8 @@ use rustls::crypto::aws_lc_rs::cipher_suite::{
 };
 use rustls::crypto::aws_lc_rs::default_provider;
 use rustls::crypto::{CryptoProvider, WebPkiSupportedAlgorithms};
-use rustls::server::danger::ClientCertVerifier;
 use rustls::server::WebPkiClientVerifier;
+use rustls::server::danger::ClientCertVerifier;
 use rustls::version::TLS12;
 use rustls::{RootCertStore, ServerConfig, SignatureScheme};
 use rustls_pki_types::pem::PemObject;
