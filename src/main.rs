@@ -1,34 +1,22 @@
-mod app_state;
 mod middleware;
-mod models;
-mod oauth;
 mod routes;
-mod schema;
 
-use crate::app_state::AppState;
-use crate::middleware::client_cert_auth::{AuthAcceptor, client_cert_middleware};
-use crate::oauth::pg_registrar::PgRegistrar;
-use crate::oauth::rsa_jwt_issuer::RsaJwtIssuer;
+use crate::middleware::client_cert_auth::{client_cert_middleware, AuthAcceptor};
 use axum::Router;
 use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
-use chrono::Duration;
-use diesel_async::AsyncPgConnection;
-use diesel_async::pooled_connection::AsyncDieselConnectionManager;
-use jsonwebtoken_aws_lc::{DecodingKey, EncodingKey};
 use rustls::crypto::aws_lc_rs::cipher_suite::{
     TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
     TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 };
 use rustls::crypto::aws_lc_rs::default_provider;
 use rustls::crypto::{CryptoProvider, WebPkiSupportedAlgorithms};
-use rustls::server::WebPkiClientVerifier;
 use rustls::server::danger::ClientCertVerifier;
+use rustls::server::WebPkiClientVerifier;
 use rustls::version::TLS12;
 use rustls::{RootCertStore, ServerConfig, SignatureScheme};
 use rustls_pki_types::pem::PemObject;
 use rustls_pki_types::{CertificateDer, PrivateKeyDer};
-use std::fs::{File, read, read_dir};
-use std::io::Read;
+use std::fs::{read, read_dir};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -36,8 +24,6 @@ use webpki::aws_lc_rs::{
     ECDSA_P256_SHA256, ECDSA_P384_SHA384, ECDSA_P521_SHA512, RSA_PKCS1_2048_8192_SHA256,
     RSA_PKCS1_2048_8192_SHA384, RSA_PKCS1_2048_8192_SHA512,
 };
-
-pub(crate) type Pool = bb8::Pool<AsyncDieselConnectionManager<AsyncPgConnection>>;
 
 #[tokio::main]
 async fn main() {
@@ -50,42 +36,14 @@ async fn main() {
         create_client_cert_verifier(root_cert_store, crypto_provider.clone());
     let server_config = create_server_config(crypto_provider, client_cert_verifier);
 
-    let jwt_enc_file =
-        PathBuf::from(dotenvy::var("JWT_PRIVATE_KEY").expect("JWT_PRIVATE_KEY variable not set"));
-    let jwt_enc_ext = jwt_enc_file
-        .extension()
-        .and_then(|e| e.to_str())
-        .expect("Invalid extension");
-
-    let jwt_dec_file =
-        PathBuf::from(dotenvy::var("JWT_PUBLIC_KEY").expect("JWT_PUBLIC_KEY variable not set"));
-    let jwt_dec_ext = jwt_dec_file
-        .extension()
-        .and_then(|e| e.to_str())
-        .expect("Invalid extension");
-
-    let db_url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL variable not set");
-    let config = AsyncDieselConnectionManager::new(db_url);
-    let db_pool = Arc::new(bb8::Pool::builder().build(config).await.unwrap());
-
-    let registrar = PgRegistrar::new(db_pool.clone());
-
-    let enc_key = load_enc_key(jwt_enc_ext, &jwt_enc_file);
-    let dec_key = load_dec_key(jwt_dec_ext, &jwt_dec_file);
-
-    let issuer = RsaJwtIssuer::new(enc_key, dec_key, "KEY-ID", "ISSUER", Duration::minutes(15));
-
-    let app_state = AppState::new(registrar, issuer);
-
     let config = RustlsConfig::from_config(server_config);
     let app = Router::new()
         .merge(routes::create_routes())
-        //.route_layer(axum::middleware::from_fn(client_cert_middleware))
-        .with_state(app_state);
+        .route_layer(axum::middleware::from_fn(client_cert_middleware));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8443));
     axum_server::bind(addr)
-        //.acceptor(AuthAcceptor::new(RustlsAcceptor::new(config)))
+        .acceptor(AuthAcceptor::new(RustlsAcceptor::new(config)))
         .serve(app.into_make_service())
         .await
         .unwrap()
@@ -192,33 +150,6 @@ fn load_certificate<'a>(ext: &str, path: &PathBuf) -> CertificateDer<'a> {
         "pem" => CertificateDer::from_pem_file(path).expect("Failed to parse PEM file."),
         "der" => CertificateDer::from(read(path).expect("Failed to read DER file.")),
         _ => panic!("Invalid certificate extension: {}", ext),
-    }
-}
-
-fn load_enc_key(ext: &str, path: &PathBuf) -> EncodingKey {
-    let mut jwt_key = vec![];
-    File::open(path)
-        .expect("Failed to open file.")
-        .read_to_end(&mut jwt_key)
-        .expect("Failed to read file.");
-    match ext {
-        "pem" => EncodingKey::from_rsa_pem(&jwt_key).expect("Failed to parse PEM file."),
-        "der" => EncodingKey::from_rsa_der(&jwt_key),
-        _ => panic!("Invalid JWT key extension: {}", ext),
-    }
-}
-
-fn load_dec_key(ext: &str, path: &PathBuf) -> DecodingKey {
-    let mut jwt_key = vec![];
-    File::open(path)
-        .expect("Failed to open file.")
-        .read_to_end(&mut jwt_key)
-        .expect("Failed to read file.");
-
-    match ext {
-        "pem" => DecodingKey::from_rsa_pem(&jwt_key).expect("Failed to parse PEM file."),
-        "der" => DecodingKey::from_rsa_der(&jwt_key),
-        _ => panic!("Invalid JWT key extension: {}", ext),
     }
 }
 
