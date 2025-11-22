@@ -27,7 +27,7 @@ use webpki::aws_lc_rs::{
 
 #[tokio::main]
 async fn main() {
-    dotenvy::dotenv().ok();
+    dotenvy::dotenv().expect("Failed to load environment variables.");
     env_logger::init();
 
     let crypto_provider = create_crypto_provider();
