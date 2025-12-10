@@ -4,13 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-once-common = { path = "../once-common", features = ["logging"]}
+once-common = { path = "../once-common", features = ["logging"] }
 
 axum = { workspace = true }
 tokio = { workspace = true }
 dotenvy = { workspace = true }
 env_logger = { workspace = true }
-log = { workspace = true }
 rustls = { workspace = true }
 tower = { workspace = true }
 async-trait = { workspace = true }
@@ -24,3 +23,5 @@ rustls-pki-types = { workspace = true }
 tokio-rustls = { workspace = true }
 rustls-webpki = { workspace = true }
 x509-parser = { workspace = true }
+askama = { workspace = true }
+tower-http = { workspace = true, features = ["fs"] }

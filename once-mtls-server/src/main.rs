@@ -1,7 +1,7 @@
 mod app_state;
 mod middleware;
 mod routes;
-mod testing;
+mod solicitor;
 
 use crate::app_state::AppState;
 use crate::middleware::client_cert_auth::{AuthAcceptor, client_cert_middleware};
@@ -25,6 +25,7 @@ use std::fs::{read, read_dir, read_to_string};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tower_http::services::ServeDir;
 use webpki::aws_lc_rs::{
     ECDSA_P256_SHA256, ECDSA_P384_SHA384, ECDSA_P521_SHA512, RSA_PKCS1_2048_8192_SHA256,
     RSA_PKCS1_2048_8192_SHA384, RSA_PKCS1_2048_8192_SHA512,
@@ -34,6 +35,8 @@ use webpki::aws_lc_rs::{
 async fn main() {
     dotenvy::dotenv().expect("Failed to load environment variables.");
     env_logger::init();
+
+    let assets_service = ServeDir::new("assets");
 
     let crypto_provider = create_crypto_provider();
     let root_cert_store = create_root_cert_store();
@@ -55,6 +58,7 @@ async fn main() {
     let config = RustlsConfig::from_config(server_config);
     let app = Router::new()
         .merge(routes::create_routes())
+        .nest_service("/assets", assets_service)
         .route_layer(axum::middleware::from_fn(client_cert_middleware))
         .with_state(app_state);
 

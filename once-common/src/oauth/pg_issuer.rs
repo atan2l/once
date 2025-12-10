@@ -93,18 +93,16 @@ impl Issuer for PgIssuer {
             .find_map(|x| if x.0 == "mtls" { x.1 } else { None })
             .ok_or_else(|| {
                 error!("mtls extension not found in grant extensions");
-                ()
             })?;
-        let deserialized_mtls_data: ClientCertData = serde_json::from_str(&mtls_extension)
+        let deserialized_mtls_data: ClientCertData = serde_json::from_str(mtls_extension)
             .map_err(|e| {
                 error!("Failed to deserialize mTLS data: {}", e);
                 ()
             })?;
         let issuer_url = IssuerUrl::new(self.issuer.clone()).map_err(|e| {
             error!("Failed to create issuer URL: {}", e);
-            ()
         })?;
-        let subject = SubjectIdentifier::new(grant.owner_id.clone());
+        let subject = SubjectIdentifier::new(deserialized_mtls_data.serial_number);
         let standard_claims = StandardClaims::new(subject);
 
         let mut localized_given_name = LocalizedClaim::new();

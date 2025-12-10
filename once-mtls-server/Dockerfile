@@ -22,5 +22,5 @@ ENV DNIE_CERTS_DIR="/dnie-certs"
 WORKDIR /app
 COPY .env .env
 
-EXPOSE 8443
+EXPOSE 443
 ENTRYPOINT ["/usr/local/bin/servidor-autenticacion-dnie"]

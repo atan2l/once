@@ -12,6 +12,26 @@ pub struct DnieEndpoint<'a, Registrar, Authorizer, Issuer, Solicitor, Scopes> {
     pub scopes: &'a mut Scopes,
 }
 
+impl<'a, Registrar, Authorizer, Issuer, Solicitor, Scopes>
+    DnieEndpoint<'a, Registrar, Authorizer, Issuer, Solicitor, Scopes>
+{
+    pub fn with_solicitor<S>(
+        self,
+        solicitor: &'a mut S,
+    ) -> DnieEndpoint<'a, Registrar, Authorizer, Issuer, S, Scopes>
+    where
+        Solicitor: OwnerSolicitor<OAuthRequest>,
+    {
+        DnieEndpoint {
+            registrar: self.registrar,
+            authorizer: self.authorizer,
+            issuer: self.issuer,
+            solicitor,
+            scopes: self.scopes,
+        }
+    }
+}
+
 impl<'a, Registrar, Authorizer, Issuer, Solicitor, Scopes> Endpoint<OAuthRequest>
     for DnieEndpoint<'a, Registrar, Authorizer, Issuer, Solicitor, Scopes>
 where

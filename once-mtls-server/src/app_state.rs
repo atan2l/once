@@ -1,17 +1,17 @@
-use crate::testing::TestSolicitor;
-use oxide_auth::frontends::simple::endpoint::Vacant;
+use crate::solicitor::HtmlSolicitor;
 use once_common::db;
 use once_common::oauth::dnie_endpoint::DnieEndpoint;
 use once_common::oauth::pg_authorizer::PgAuthorizer;
 use once_common::oauth::pg_issuer::{CoreRsaPrivateSigningKey, PgIssuer};
 use once_common::oauth::pg_registrar::PgRegistrar;
+use oxide_auth::frontends::simple::endpoint::Vacant;
 
 pub struct AppState {
     db_pool: db::Pool,
     authorizer: PgAuthorizer,
     issuer: PgIssuer,
     registrar: PgRegistrar,
-    solicitor: TestSolicitor,
+    solicitor: Vacant,
     scopes: Vacant,
 }
 
@@ -21,7 +21,7 @@ impl AppState {
             authorizer: PgAuthorizer::new(db_pool.clone()),
             registrar: PgRegistrar::new(db_pool.clone()),
             issuer: PgIssuer::new(rsa_key, db_pool.clone(), issuer),
-            solicitor: TestSolicitor,
+            solicitor: Vacant,
             scopes: Vacant,
             db_pool,
         }
@@ -29,7 +29,7 @@ impl AppState {
 
     pub fn endpoint(
         &'_ mut self,
-    ) -> DnieEndpoint<'_, PgRegistrar, PgAuthorizer, PgIssuer, TestSolicitor, Vacant> {
+    ) -> DnieEndpoint<'_, PgRegistrar, PgAuthorizer, PgIssuer, Vacant, Vacant> {
         DnieEndpoint {
             registrar: &self.registrar,
             authorizer: &mut self.authorizer,
@@ -47,7 +47,7 @@ impl Clone for AppState {
             authorizer: self.authorizer.clone(),
             issuer: self.issuer.clone(),
             registrar: self.registrar.clone(),
-            solicitor: self.solicitor.clone(),
+            solicitor: Vacant,
             scopes: Vacant,
         }
     }

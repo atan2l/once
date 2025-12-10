@@ -55,12 +55,12 @@ impl PgAuthorizer {
 
         let result = hasher.finalize();
         debug!("Hashed authorization code");
-        BASE64_STANDARD.encode(&result)
+        BASE64_STANDARD.encode(result)
     }
 
     fn encrypt_value(key_bytes: &[u8], plaintext: &[u8]) -> Option<Vec<u8>> {
         let key = Key::<Aes256Gcm>::from_slice(key_bytes);
-        let cipher = Aes256Gcm::new(&key);
+        let cipher = Aes256Gcm::new(key);
 
         let mut nonce_bytes = [0u8; 12];
         OsRng.try_fill_bytes(&mut nonce_bytes).ok()?;
@@ -78,7 +78,7 @@ impl PgAuthorizer {
 
     fn decrypt_value(key_bytes: &[u8], value: &str) -> Option<Vec<u8>> {
         let key = Key::<Aes256Gcm>::from_slice(key_bytes);
-        let cipher = Aes256Gcm::new(&key);
+        let cipher = Aes256Gcm::new(key);
 
         let combined = BASE64_STANDARD.decode(value).ok()?;
         if combined.len() < 12 {
@@ -130,10 +130,11 @@ impl Authorizer for PgAuthorizer {
             })?;
 
         let mut grant_extensions = vec![];
-        for extension in grant.extensions.public().filter_map(|x| match x.1 {
-            None => None,
-            Some(v) => Some((x.0, v)),
-        }) {
+        for extension in grant
+            .extensions
+            .public()
+            .filter_map(|x| x.1.map(|v| (x.0, v)))
+        {
             let encrypted_value =
                 Self::encrypt_value(&derived_key, extension.1.as_bytes()).ok_or(())?;
             let encoded_value = BASE64_STANDARD.encode(&encrypted_value);
@@ -158,7 +159,7 @@ impl Authorizer for PgAuthorizer {
             grant_extensions, &grant.client_id
         );
 
-        Ok(BASE64_URL_SAFE_NO_PAD.encode(&code))
+        Ok(BASE64_URL_SAFE_NO_PAD.encode(code))
     }
 
     async fn extract(&mut self, code: &str) -> Result<Option<Grant>, ()> {
@@ -210,7 +211,7 @@ impl Authorizer for PgAuthorizer {
         for extension in grant_extensions {
             let decrypted_value = Self::decrypt_value(&derived_key, &extension.value).ok_or(())?;
             debug!("Decrypted value for extension {:?}", extension);
-            let decrypted_value = String::from_utf8(decrypted_value).map_err(|e| {
+            let decrypted_value = String::from_utf8(decrypted_value).map_err(|_| {
                 warn!("Failed to convert decrypted value to UTF-8");
             })?;
 
