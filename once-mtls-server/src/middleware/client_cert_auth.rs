@@ -1,10 +1,11 @@
-﻿use axum::extract::Request;
+﻿use axum::Extension;
+use axum::extract::Request;
 use axum::middleware::{AddExtension, Next};
 use axum::response::Response;
-use axum::Extension;
 use axum_server::accept::Accept;
 use axum_server::tls_rustls::RustlsAcceptor;
 use futures_util::future::BoxFuture;
+use once_common::oauth::client_cert_data::ClientCertData;
 use rustls_pki_types::CertificateDer;
 use std::io;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -13,14 +14,6 @@ use tower::ServiceBuilder;
 use x509_parser::certificate::X509Certificate;
 use x509_parser::oid_registry::{OID_X509_GIVEN_NAME, OID_X509_SERIALNUMBER, OID_X509_SURNAME};
 use x509_parser::prelude::FromDer;
-
-#[derive(Clone)]
-pub struct ClientCertData {
-    pub given_name: String,
-    pub surname: String,
-    pub serial_number: String,
-    pub country: String,
-}
 
 #[derive(Clone)]
 pub struct PeerCertificates<'a>(Option<Vec<CertificateDer<'a>>>);

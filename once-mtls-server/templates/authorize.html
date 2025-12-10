@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Authorize access</title>
+    <link rel="stylesheet" href="/assets/css/auth.css">
+</head>
+<body>
+<main class="page">
+    <section class="card">
+        <header class="card__header">
+            <h1>Authorise access</h1>
+            <p class="card__subtitle">
+                Application <strong>{{ client_id }}</strong> is requesting access
+                to your DNIe identity.
+            </p>
+        </header>
+
+        <section class="card__body">
+            <h2>Information requested</h2>
+            <ul class="info-list">
+                <li>Given name: <strong>{{ given_name }}</strong></li>
+                <li>Family name: <strong>{{ family_name }}</strong></li>
+                <li>ID number: <strong>{{ id_number }}</strong></li>
+            </ul>
+
+            <p class="card__hint">
+                This corresponds to the scopes: <code>{{ scopes }}</code>.
+            </p>
+
+            <p>
+                By continuing, you allow <strong>{{ client_id }}</strong> to
+                receive this information from the authentication server.
+            </p>
+
+            <form method="post" class="consent-form">
+                <!-- Forward OAuth state back to the server if present -->
+                {% if state.is_some() %}
+                <input type="hidden" name="state" value="{{ state.as_ref().unwrap() }}">
+                {% endif %}
+
+                <!-- Decision flag consumed by HtmlConsentSolicitor -->
+                <div class="consent-form__actions">
+                    <button type="submit" name="decision" value="approve" class="btn btn--primary">
+                        Allow
+                    </button>
+                    <button type="submit" name="decision" value="deny" class="btn btn--secondary">
+                        Deny
+                    </button>
+                </div>
+            </form>
+
+            <p class="card__footer">
+                Redirect URI after authorisation:
+                <code>{{ redirect_uri }}</code>
+            </p>
+        </section>
+    </section>
+</main>
+</body>
+</html>

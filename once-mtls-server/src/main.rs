@@ -1,12 +1,14 @@
 mod app_state;
 mod middleware;
 mod routes;
+mod solicitor;
 
 use crate::app_state::AppState;
 use crate::middleware::client_cert_auth::{AuthAcceptor, client_cert_middleware};
 use axum::Router;
 use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
-use jsonwebtoken_aws_lc::EncodingKey;
+use diesel_async::pooled_connection::{AsyncDieselConnectionManager, bb8};
+use once_common::oauth::pg_issuer::CoreRsaPrivateSigningKey;
 use rustls::crypto::aws_lc_rs::cipher_suite::{
     TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
     TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
@@ -19,11 +21,11 @@ use rustls::version::TLS12;
 use rustls::{RootCertStore, ServerConfig, SignatureScheme};
 use rustls_pki_types::pem::PemObject;
 use rustls_pki_types::{CertificateDer, PrivateKeyDer};
-use std::fs::{File, read, read_dir};
-use std::io::Read;
+use std::fs::{read, read_dir, read_to_string};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tower_http::services::ServeDir;
 use webpki::aws_lc_rs::{
     ECDSA_P256_SHA256, ECDSA_P384_SHA384, ECDSA_P521_SHA512, RSA_PKCS1_2048_8192_SHA256,
     RSA_PKCS1_2048_8192_SHA384, RSA_PKCS1_2048_8192_SHA512,
@@ -31,7 +33,10 @@ use webpki::aws_lc_rs::{
 
 #[tokio::main]
 async fn main() {
-    dotenvy::dotenv().ok();
+    dotenvy::dotenv().expect("Failed to load environment variables.");
+    env_logger::init();
+
+    let assets_service = ServeDir::new("assets");
 
     let crypto_provider = create_crypto_provider();
     let root_cert_store = create_root_cert_store();
@@ -39,20 +44,21 @@ async fn main() {
         create_client_cert_verifier(root_cert_store, crypto_provider.clone());
     let server_config = create_server_config(crypto_provider, client_cert_verifier);
 
-    let jwt_key_file =
-        PathBuf::from(dotenvy::var("JWT_PRIVATE_KEY").expect("Environment variable not set"));
-    let jwt_key_ext = jwt_key_file
-        .extension()
-        .and_then(|e| e.to_str())
-        .expect("Invalid extension");
+    let db_url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL environment variable not set.");
+    let config = AsyncDieselConnectionManager::new(db_url);
+    let db_pool = bb8::Pool::builder().build(config).await.unwrap();
 
-    let app_state = AppState {
-        jwt_private_key: load_jwt_key(jwt_key_ext, &jwt_key_file),
-    };
+    let jwt_private_key_path =
+        dotenvy::var("JWT_PRIVATE_KEY").expect("JWT_PRIVATE_KEY environment variable not set.");
+    let rsa_key = load_rsa_private_key(&PathBuf::from(&jwt_private_key_path));
+
+    let issuer = dotenvy::var("JWT_ISSUER").expect("JWT_ISSUER environment variable not set.");
+    let app_state = AppState::new(db_pool, rsa_key, issuer);
 
     let config = RustlsConfig::from_config(server_config);
     let app = Router::new()
         .merge(routes::create_routes())
+        .nest_service("/assets", assets_service)
         .route_layer(axum::middleware::from_fn(client_cert_middleware))
         .with_state(app_state);
 
@@ -134,10 +140,10 @@ fn create_root_cert_store() -> Arc<RootCertStore> {
     let mut root_cert_store = RootCertStore::empty();
 
     for cert in cert_files.flatten() {
-        if let Some(ext) = cert.path().extension().and_then(|e| e.to_str()) {
-            if SUPPORTED_CERT_EXTENSIONS.contains(&ext) {
-                add_certificate(&mut root_cert_store, ext, cert.path());
-            }
+        if let Some(ext) = cert.path().extension().and_then(|e| e.to_str())
+            && SUPPORTED_CERT_EXTENSIONS.contains(&ext)
+        {
+            add_certificate(&mut root_cert_store, ext, cert.path());
         }
     }
 
@@ -168,17 +174,10 @@ fn load_certificate<'a>(ext: &str, path: &PathBuf) -> CertificateDer<'a> {
     }
 }
 
-fn load_jwt_key(ext: &str, path: &PathBuf) -> EncodingKey {
-    let mut jwt_key = vec![];
-    File::open(path)
-        .expect("Failed to open file.")
-        .read_to_end(&mut jwt_key)
-        .expect("Failed to read file.");
-    match ext {
-        "pem" => EncodingKey::from_rsa_pem(&jwt_key).expect("Failed to parse PEM file."),
-        "der" => EncodingKey::from_rsa_der(&jwt_key),
-        _ => panic!("Invalid JWT key extension: {}", ext),
-    }
+fn load_rsa_private_key(path: &PathBuf) -> CoreRsaPrivateSigningKey {
+    let encoded_key = read_to_string(path).expect("Failed to read RSA private key file.");
+    CoreRsaPrivateSigningKey::from_pem(&encoded_key, None)
+        .expect("Failed to parse RSA private key file.")
 }
 
 static SUPPORTED_SIG_ALGORITHMS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorithms {
