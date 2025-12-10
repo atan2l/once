@@ -1,11 +1,12 @@
-﻿use axum::extract::Request;
+﻿use axum::Extension;
+use axum::extract::Request;
 use axum::middleware::{AddExtension, Next};
 use axum::response::Response;
-use axum::Extension;
 use axum_server::accept::Accept;
 use axum_server::tls_rustls::RustlsAcceptor;
 use futures_util::future::BoxFuture;
 use rustls_pki_types::CertificateDer;
+use servidor_autenticacion_dnie_common::oauth::client_cert_data::ClientCertData;
 use std::io;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::server::TlsStream;
@@ -15,18 +16,10 @@ use x509_parser::oid_registry::{OID_X509_GIVEN_NAME, OID_X509_SERIALNUMBER, OID_
 use x509_parser::prelude::FromDer;
 
 #[derive(Clone)]
-pub(crate) struct ClientCertData {
-    pub given_name: String,
-    pub surname: String,
-    pub serial_number: String,
-    pub country: String,
-}
+pub struct PeerCertificates<'a>(Option<Vec<CertificateDer<'a>>>);
 
 #[derive(Clone)]
-pub(crate) struct PeerCertificates<'a>(Option<Vec<CertificateDer<'a>>>);
-
-#[derive(Clone)]
-pub(crate) struct AuthAcceptor {
+pub struct AuthAcceptor {
     inner: RustlsAcceptor,
 }
 

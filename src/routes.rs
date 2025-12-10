@@ -1,13 +1,12 @@
-use crate::routes::test::get_test;
-use crate::routes::token::get_token;
-use axum::Router;
-use axum::routing::get;
-
-mod test;
+mod authorize;
 mod token;
 
-pub(crate) fn create_routes() -> Router {
+use crate::app_state::AppState;
+use axum::Router;
+use axum::routing::{get, post};
+
+pub fn create_routes() -> Router<AppState> {
     Router::new()
-        .route("/test", get(get_test))
-        .route("/token", get(get_token))
+        .route("/authorize", get(authorize::get_authorize))
+        .route("/token", get(token::post_token))
 }

@@ -1,9 +1,13 @@
+mod app_state;
 mod middleware;
 mod routes;
+mod testing;
 
+use crate::app_state::AppState;
 use crate::middleware::client_cert_auth::{AuthAcceptor, client_cert_middleware};
 use axum::Router;
 use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
+use diesel_async::pooled_connection::{AsyncDieselConnectionManager, bb8};
 use rustls::crypto::aws_lc_rs::cipher_suite::{
     TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
     TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
@@ -16,7 +20,8 @@ use rustls::version::TLS12;
 use rustls::{RootCertStore, ServerConfig, SignatureScheme};
 use rustls_pki_types::pem::PemObject;
 use rustls_pki_types::{CertificateDer, PrivateKeyDer};
-use std::fs::{read, read_dir};
+use servidor_autenticacion_dnie_common::oauth::pg_issuer::CoreRsaPrivateSigningKey;
+use std::fs::{read, read_dir, read_to_string};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -36,10 +41,22 @@ async fn main() {
         create_client_cert_verifier(root_cert_store, crypto_provider.clone());
     let server_config = create_server_config(crypto_provider, client_cert_verifier);
 
+    let db_url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL environment variable not set.");
+    let config = AsyncDieselConnectionManager::new(db_url);
+    let db_pool = bb8::Pool::builder().build(config).await.unwrap();
+
+    let jwt_private_key_path =
+        dotenvy::var("JWT_PRIVATE_KEY").expect("JWT_PRIVATE_KEY environment variable not set.");
+    let rsa_key = load_rsa_private_key(&PathBuf::from(&jwt_private_key_path));
+
+    let issuer = dotenvy::var("JWT_ISSUER").expect("JWT_ISSUER environment variable not set.");
+    let app_state = AppState::new(db_pool, rsa_key, issuer);
+
     let config = RustlsConfig::from_config(server_config);
     let app = Router::new()
         .merge(routes::create_routes())
-        .route_layer(axum::middleware::from_fn(client_cert_middleware));
+        .route_layer(axum::middleware::from_fn(client_cert_middleware))
+        .with_state(app_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8443));
     axum_server::bind(addr)
@@ -151,6 +168,12 @@ fn load_certificate<'a>(ext: &str, path: &PathBuf) -> CertificateDer<'a> {
         "der" => CertificateDer::from(read(path).expect("Failed to read DER file.")),
         _ => panic!("Invalid certificate extension: {}", ext),
     }
+}
+
+fn load_rsa_private_key(path: &PathBuf) -> CoreRsaPrivateSigningKey {
+    let encoded_key = read_to_string(path).expect("Failed to read RSA private key file.");
+    CoreRsaPrivateSigningKey::from_pem(&encoded_key, None)
+        .expect("Failed to parse RSA private key file.")
 }
 
 static SUPPORTED_SIG_ALGORITHMS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorithms {

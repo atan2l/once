@@ -15,17 +15,12 @@ rustls-webpki = { version = "0.103", features = ["aws-lc-rs"], default-features 
 futures-util = "0.3"
 x509-parser = "0.18"
 dotenvy = "0.15"
-jsonwebtoken-aws-lc = "9.3.0"
-serde = { version = "1.0", features = ["derive"] }
-chrono = { version = "0.4", features = ["serde"] }
-env_logger = "0.11.8"
 oxide-auth = "0.6.1"
 oxide-auth-axum = "0.6.0"
 oxide-auth-async = "0.2.1"
-uuid = { version = "1.18", features = ["serde"] }
-diesel = { version = "2.3", features = ["uuid", "postgres"] }
-diesel-async = { version = "0.7", features = ["postgres", "bb8"] }
-bb8 = "0.9.0"
-async-trait = "0.1.88"
-log = "0.4.27"
-openidconnect = { version = "3.5.0", default-features = false }
+diesel-async = { version = "0.7.4", features = ["bb8", "postgres"] }
+async-trait = "0.1.89"
+log = "0.4.29"
+env_logger = "0.11.8"
+
+servidor-autenticacion-dnie-common = { path = "/home/eltu/dev/rust/servidor-autenticacion-dnie-common", features = ["logging"] }

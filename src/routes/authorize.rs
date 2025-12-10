@@ -1,20 +1,23 @@
-use std::sync::Arc;
 use crate::app_state::AppState;
+use axum::Extension;
 use axum::extract::State;
 use axum::response::IntoResponse;
 use oxide_auth::frontends::simple::extensions::{AddonList, Extended};
-use oxide_auth_async::endpoint::access_token::AccessTokenFlow;
+use oxide_auth_async::endpoint::authorization::AuthorizationFlow;
 use oxide_auth_axum::OAuthRequest;
-use servidor_autenticacion_dnie_common::oauth::mtls_access_token_extension::MtlsAccessTokenExtension;
+use servidor_autenticacion_dnie_common::oauth::client_cert_data::ClientCertData;
+use servidor_autenticacion_dnie_common::oauth::mtls_auth_extension::MtlsAuthExtension;
 
-pub async fn post_token(
+pub async fn get_authorize(
     State(mut app_state): State<AppState>,
+    Extension(client_cert_data): Extension<ClientCertData>,
     request: OAuthRequest,
 ) -> impl IntoResponse {
     let mut extensions = AddonList::new();
-    extensions.access_token.push(Arc::new(MtlsAccessTokenExtension));
+    let mtls_extension = MtlsAuthExtension::new(client_cert_data);
+    extensions.push_authorization(mtls_extension);
     let endpoint = Extended::extend_with(app_state.endpoint(), extensions);
-    match AccessTokenFlow::prepare(endpoint) {
+    match AuthorizationFlow::prepare(endpoint) {
         Ok(mut flow) => flow
             .execute(request)
             .await
