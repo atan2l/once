@@ -1,4 +1,4 @@
-﻿# Servidor de Autenticación de DNIe
+﻿# ONCE (OpenId Connect eID)
 
 El objetivo de este proyecto es replicar el sistema de autenticación utilizado por las
 diferentes administraciones públicas para acreditar la identidad real de los usuarios

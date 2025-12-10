@@ -8,6 +8,7 @@ use crate::middleware::client_cert_auth::{AuthAcceptor, client_cert_middleware};
 use axum::Router;
 use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
 use diesel_async::pooled_connection::{AsyncDieselConnectionManager, bb8};
+use once_common::oauth::pg_issuer::CoreRsaPrivateSigningKey;
 use rustls::crypto::aws_lc_rs::cipher_suite::{
     TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
     TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
@@ -20,7 +21,6 @@ use rustls::version::TLS12;
 use rustls::{RootCertStore, ServerConfig, SignatureScheme};
 use rustls_pki_types::pem::PemObject;
 use rustls_pki_types::{CertificateDer, PrivateKeyDer};
-use servidor_autenticacion_dnie_common::oauth::pg_issuer::CoreRsaPrivateSigningKey;
 use std::fs::{read, read_dir, read_to_string};
 use std::net::SocketAddr;
 use std::path::PathBuf;

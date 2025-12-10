@@ -23,4 +23,4 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
-          tags: eltuercas/servidor-autenticacion-dnie:latest
+          tags: eltuercas/once-mtls-server:latest

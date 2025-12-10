@@ -320,9 +320,9 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "base64ct"
-version = "1.8.0"
+version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55248b47b0caf0546f7988906588779981c43bb1bc9d0c44087278f80cdb44ba"
+checksum = "0e050f626429857a27ddccb31e0aca21356bfa709c04041aefddac081a8f068a"
 
 [[package]]
 name = "bb8"
@@ -1634,6 +1634,55 @@ dependencies = [
 ]
 
 [[package]]
+name = "once-common"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "argon2",
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "diesel",
+ "diesel-async",
+ "hkdf",
+ "log",
+ "openidconnect",
+ "oxide-auth",
+ "oxide-auth-async",
+ "oxide-auth-axum",
+ "rand 0.9.2",
+ "serde",
+ "serde_json",
+ "sha2",
+ "uuid",
+]
+
+[[package]]
+name = "once-mtls-server"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "axum-server",
+ "diesel-async",
+ "dotenvy",
+ "env_logger",
+ "futures-util",
+ "log",
+ "once-common",
+ "oxide-auth",
+ "oxide-auth-async",
+ "oxide-auth-axum",
+ "rustls",
+ "rustls-pki-types",
+ "rustls-webpki",
+ "tokio",
+ "tokio-rustls",
+ "tower",
+ "x509-parser",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2428,9 +2477,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "3.16.0"
+version = "3.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10574371d41b0d9b2cff89418eda27da52bcaff2cc8741db26382a77c29131f1"
+checksum = "4fa237f2807440d238e0364a218270b98f767a00d3dada77b1c53ae88940e2e7"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -2447,63 +2496,14 @@ dependencies = [
 
 [[package]]
 name = "serde_with_macros"
-version = "3.16.0"
+version = "3.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08a72d8216842fdd57820dc78d840bef99248e35fb2554ff923319e60f2d686b"
+checksum = "52a8e3ca0ca629121f70ab50f95249e5a6f925cc0f6ffe8256c45b728875706c"
 dependencies = [
  "darling",
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "servidor-autenticacion-dnie"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "axum",
- "axum-server",
- "diesel-async",
- "dotenvy",
- "env_logger",
- "futures-util",
- "log",
- "oxide-auth",
- "oxide-auth-async",
- "oxide-auth-axum",
- "rustls",
- "rustls-pki-types",
- "rustls-webpki",
- "servidor-autenticacion-dnie-common",
- "tokio",
- "tokio-rustls",
- "tower",
- "x509-parser",
-]
-
-[[package]]
-name = "servidor-autenticacion-dnie-common"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "argon2",
- "async-trait",
- "base64 0.22.1",
- "chrono",
- "diesel",
- "diesel-async",
- "hkdf",
- "log",
- "openidconnect",
- "oxide-auth",
- "oxide-auth-async",
- "oxide-auth-axum",
- "rand 0.9.2",
- "serde",
- "serde_json",
- "sha2",
- "uuid",
 ]
 
 [[package]]
@@ -2929,13 +2929,13 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "1.18.1"
+version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f87b8aa10b915a06587d0dec516c282ff295b475d94abf425d62b57710070a2"
+checksum = "e2e054861b4bd027cd373e18e8d8d8e6548085000e41290d95ce0c373a654b4a"
 dependencies = [
  "getrandom 0.3.4",
  "js-sys",
- "serde",
+ "serde_core",
  "wasm-bindgen",
 ]
 

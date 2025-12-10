@@ -1,0 +1,28 @@
+[package]
+name = "once-common"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+oxide-auth = { workspace = true }
+oxide-auth-async = { workspace = true }
+oxide-auth-axum = { workspace = true }
+openidconnect = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+diesel = { workspace = true }
+diesel-async = { workspace = true }
+async-trait = { workspace = true }
+argon2 = { workspace = true }
+chrono = { workspace = true }
+rand = { workspace = true }
+sha2 = { workspace = true }
+hkdf = { workspace = true }
+aes-gcm = { workspace = true }
+base64 = { workspace = true }
+log = { workspace = true, optional = true }
+
+[features]
+default = []
+logging = ["log"]
