@@ -1,4 +1,3 @@
-use crate::solicitor::HtmlSolicitor;
 use once_common::db;
 use once_common::oauth::dnie_endpoint::DnieEndpoint;
 use once_common::oauth::pg_authorizer::PgAuthorizer;
