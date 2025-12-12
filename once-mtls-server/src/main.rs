@@ -6,6 +6,9 @@ mod solicitor;
 use crate::app_state::AppState;
 use crate::middleware::client_cert_auth::{AuthAcceptor, client_cert_middleware};
 use axum::Router;
+use axum::extract::Request;
+use axum::http::StatusCode;
+use axum::response::Redirect;
 use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
 use diesel_async::pooled_connection::{AsyncDieselConnectionManager, bb8};
 use once_common::oauth::pg_issuer::CoreRsaPrivateSigningKey;
@@ -33,6 +36,41 @@ use webpki::aws_lc_rs::{
 
 #[tokio::main]
 async fn main() {
+    let http = http_server();
+    let https = https_server();
+    tokio::join!(http, https);
+}
+
+async fn http_server() {
+    let app = Router::new().fallback(redirect_to_https);
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
+    axum_server::bind(addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
+}
+
+async fn redirect_to_https(request: Request) -> Result<Redirect, StatusCode> {
+    let host = request
+        .headers()
+        .get("host")
+        .and_then(|x| x.to_str().ok())
+        .unwrap_or("localhost");
+    let host = host.split(':').next().unwrap_or(host);
+    let https_url = format!(
+        "https://{}:8443{}",
+        host,
+        request
+            .uri()
+            .path_and_query()
+            .map(|x| x.as_str())
+            .unwrap_or("/")
+    );
+
+    Ok(Redirect::permanent(&https_url))
+}
+
+async fn https_server() {
     dotenvy::dotenv().expect("Failed to load environment variables.");
     env_logger::init();
 
