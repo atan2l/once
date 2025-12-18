@@ -11,8 +11,8 @@ use diesel_async::RunQueryDsl;
 use openidconnect::core::CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256;
 use openidconnect::core::{CoreIdToken, CoreIdTokenClaims};
 use openidconnect::{
-    Audience, EmptyAdditionalClaims, EndUserFamilyName, EndUserGivenName, IssuerUrl, LanguageTag,
-    LocalizedClaim, StandardClaims, SubjectIdentifier,
+    Audience, EmptyAdditionalClaims, EndUserBirthday, EndUserFamilyName, EndUserGivenName,
+    IssuerUrl, LanguageTag, LocalizedClaim, StandardClaims, SubjectIdentifier,
 };
 use oxide_auth::primitives::grant::{Extensions, Grant, Value};
 use oxide_auth::primitives::issuer::{IssuedToken, RefreshedToken, TokenType};
@@ -94,10 +94,9 @@ impl Issuer for PgIssuer {
             .ok_or_else(|| {
                 error!("mtls extension not found in grant extensions");
             })?;
-        let deserialized_mtls_data: ClientCertData = serde_json::from_str(mtls_extension)
-            .map_err(|e| {
+        let deserialized_mtls_data: ClientCertData =
+            serde_json::from_str(mtls_extension).map_err(|e| {
                 error!("Failed to deserialize mTLS data: {}", e);
-                ()
             })?;
         let issuer_url = IssuerUrl::new(self.issuer.clone()).map_err(|e| {
             error!("Failed to create issuer URL: {}", e);
@@ -118,13 +117,17 @@ impl Issuer for PgIssuer {
         );
 
         debug!(
-            "Building standard claims with given_name: {}, family_name: {}, country: {}",
+            "Building standard claims with given_name: {}, family_name: {}, country: {}, date_of_birth: {:?}",
             deserialized_mtls_data.given_name,
             deserialized_mtls_data.surname,
-            deserialized_mtls_data.country
+            deserialized_mtls_data.country,
+            deserialized_mtls_data.date_of_birth
         );
         let standard_claims = standard_claims.set_given_name(Some(localized_given_name));
         let standard_claims = standard_claims.set_family_name(Some(localized_family_name));
+        let standard_claims = standard_claims.set_birthdate(Some(EndUserBirthday::new(
+            deserialized_mtls_data.date_of_birth.to_rfc3339(),
+        )));
 
         let now = Utc::now();
         debug!(
@@ -133,7 +136,7 @@ impl Issuer for PgIssuer {
         );
         let id_token_claims = CoreIdTokenClaims::new(
             issuer_url,
-            vec![Audience::new(grant.client_id.clone())],
+            vec![Audience::new(grant.client_id)],
             now,
             grant.until,
             standard_claims,
@@ -149,7 +152,6 @@ impl Issuer for PgIssuer {
         )
         .map_err(|e| {
             error!("Failed to create ID token: {}", e);
-            ()
         })?;
 
         info!("Successfully issued token for owner_id: {}", grant.owner_id);
@@ -183,11 +185,9 @@ impl Issuer for PgIssuer {
 
         let scope = base_grant.scope.parse().map_err(|e| {
             error!("Failed to parse scope: {:?}", e);
-            ()
         })?;
         let redirect_uri = base_grant.redirect_uri.parse().map_err(|e| {
             error!("Failed to parse redirect_uri: {:?}", e);
-            ()
         })?;
 
         info!(

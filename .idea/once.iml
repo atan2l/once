@@ -5,6 +5,7 @@
       <sourceFolder url="file://$MODULE_DIR$/once-common/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/once-mtls-server/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/once-pub-server/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

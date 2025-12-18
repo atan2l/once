@@ -1,5 +1,5 @@
 [workspace]
-members = ["once-mtls-server", "once-common"]
+members = ["once-mtls-server", "once-common", "once-pub-server"]
 
 resolver = "3"
 

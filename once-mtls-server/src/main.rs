@@ -93,7 +93,7 @@ async fn https_server() {
     let issuer = dotenvy::var("JWT_ISSUER").expect("JWT_ISSUER environment variable not set.");
     let app_state = AppState::new(db_pool, rsa_key, issuer);
 
-    let config = RustlsConfig::from_config(server_config);
+    let rustls_config = RustlsConfig::from_config(server_config);
     let app = Router::new()
         .merge(routes::create_routes())
         .nest_service("/assets", assets_service)
@@ -102,7 +102,7 @@ async fn https_server() {
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8443));
     axum_server::bind(addr)
-        .acceptor(AuthAcceptor::new(RustlsAcceptor::new(config)))
+        .acceptor(AuthAcceptor::new(RustlsAcceptor::new(rustls_config)))
         .serve(app.into_make_service())
         .await
         .unwrap()
