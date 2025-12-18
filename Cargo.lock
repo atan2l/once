@@ -1830,8 +1830,7 @@ dependencies = [
 [[package]]
 name = "oxide-auth"
 version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c136ac668d12ba0b5b8ce159b95c7600fda826dc599a1e1916f8461c0d16a84"
+source = "git+https://github.com/atan2l/oxide-auth#f904d17851e47196af0e7feae14dd2832c673928"
 dependencies = [
  "base64 0.21.7",
  "chrono",
@@ -1851,8 +1850,7 @@ dependencies = [
 [[package]]
 name = "oxide-auth-async"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5979faf468f3386b8dc0e60acbaffdbb1ad387d9fd58dd9c71d05514e4a940d1"
+source = "git+https://github.com/atan2l/oxide-auth#f904d17851e47196af0e7feae14dd2832c673928"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
@@ -1864,8 +1862,7 @@ dependencies = [
 [[package]]
 name = "oxide-auth-axum"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc405cda666049de3ee1bc274860c9384efef2300ce8ce3ebbab336f603000fe"
+source = "git+https://github.com/atan2l/oxide-auth#f904d17851e47196af0e7feae14dd2832c673928"
 dependencies = [
  "axum",
  "oxide-auth",

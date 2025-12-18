@@ -5,10 +5,13 @@ use crate::db::schema::oauth_grants::dsl::oauth_grants;
 use crate::logging::{debug, error, info, warn};
 use crate::oauth::client_cert_data::ClientCertData;
 use async_trait::async_trait;
+use base64::Engine;
+use base64::prelude::BASE64_URL_SAFE;
 use chrono::Utc;
 use diesel::{BelongingToDsl, ExpressionMethods, Identifiable, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use openidconnect::core::CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256;
+pub use openidconnect::core::CoreRsaPrivateSigningKey;
 use openidconnect::core::{CoreIdToken, CoreIdTokenClaims};
 use openidconnect::{
     Audience, EmptyAdditionalClaims, EndUserBirthday, EndUserFamilyName, EndUserGivenName,
@@ -19,8 +22,6 @@ use oxide_auth::primitives::issuer::{IssuedToken, RefreshedToken, TokenType};
 use oxide_auth_async::primitives::Issuer;
 use std::sync::Arc;
 use std::time::Duration;
-
-pub use openidconnect::core::CoreRsaPrivateSigningKey;
 
 #[derive(Clone)]
 pub struct PgIssuer {
@@ -154,9 +155,13 @@ impl Issuer for PgIssuer {
             error!("Failed to create ID token: {}", e);
         })?;
 
+        let random_bytes = rand::random::<[u8; 32]>();
+
         info!("Successfully issued token for owner_id: {}", grant.owner_id);
         Ok(IssuedToken {
-            token: id_token.to_string(),
+            id_token: id_token.to_string(),
+            // Opaque token, not used anywhere, valid for nothing
+            token: BASE64_URL_SAFE.encode(random_bytes),
             refresh: None,
             until: grant.until,
             token_type: TokenType::Bearer,

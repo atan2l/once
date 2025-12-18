@@ -16,9 +16,9 @@ futures-util = "0.3"
 x509-parser = "0.18"
 dotenvy = "0.15"
 openidconnect = { version = "3.5.0", default-features = false }
-oxide-auth = "0.6.1"
-oxide-auth-axum = "0.6.0"
-oxide-auth-async = "0.2.1"
+oxide-auth = { git = "https://github.com/atan2l/oxide-auth" }
+oxide-auth-axum = { git = "https://github.com/atan2l/oxide-auth" }
+oxide-auth-async = { git = "https://github.com/atan2l/oxide-auth" }
 serde = "1.0.228"
 serde_json = "1.0.145"
 uuid = { version = "1.19.0", features = ["serde", "v4"] }
