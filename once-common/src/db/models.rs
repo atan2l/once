@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use diesel::{Associations, Identifiable, Insertable, Queryable, Selectable};
+use diesel::{Associations, Identifiable, Insertable, QueryId, Queryable, Selectable};
 use uuid::Uuid;
 
 #[derive(Debug, Queryable, Identifiable, Selectable, Insertable, PartialEq)]
@@ -54,4 +54,5 @@ pub struct OAuthGrantExtension {
     pub code_hash: String,
     pub name: String,
     pub value: String,
+    pub visibility: String
 }

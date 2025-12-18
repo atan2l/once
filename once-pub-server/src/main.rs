@@ -1,18 +1,18 @@
 use crate::app_state::AppState;
 use axum::Router;
-use diesel_async::pooled_connection::{bb8, AsyncDieselConnectionManager};
-use once_common::oauth::pg_issuer::CoreRsaPrivateSigningKey;
-use rustls::crypto::aws_lc_rs::default_provider;
+use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
+use diesel_async::pooled_connection::{AsyncDieselConnectionManager, bb8};
+use once_common::oauth::pg_issuer::{CoreRsaPrivateSigningKey, JsonWebKeyId};
+use rustls::ServerConfig;
 use rustls::crypto::CryptoProvider;
+use rustls::crypto::aws_lc_rs::default_provider;
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::version::TLS12;
-use rustls::ServerConfig;
 use std::fs::{read, read_to_string};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
 
 mod app_state;
 mod routes;
@@ -43,7 +43,7 @@ async fn https_server() {
     let app = Router::new()
         .merge(routes::create_routes())
         .with_state(app_state);
-    
+
     let rustls_config = RustlsConfig::from_config(server_config);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8444));
@@ -95,7 +95,7 @@ fn create_server_config(crypto_provider: Arc<CryptoProvider>) -> Arc<ServerConfi
 
 fn load_rsa_private_key(path: &PathBuf) -> CoreRsaPrivateSigningKey {
     let encoded_key = read_to_string(path).expect("Failed to read RSA private key file.");
-    CoreRsaPrivateSigningKey::from_pem(&encoded_key, None)
+    CoreRsaPrivateSigningKey::from_pem(&encoded_key, Some(JsonWebKeyId::new(String::from("v1"))))
         .expect("Failed to parse RSA private key file.")
 }
 

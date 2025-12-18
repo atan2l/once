@@ -15,4 +15,5 @@ oxide-auth-async = { workspace = true }
 oxide-auth-axum = { workspace = true }
 axum-server = { workspace = true }
 diesel-async = { workspace = true }
-rustls = {workspace = true}
+rustls = { workspace = true }
+serde = { workspace = true }

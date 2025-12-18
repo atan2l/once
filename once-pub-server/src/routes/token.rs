@@ -2,6 +2,7 @@ use crate::app_state::AppState;
 use axum::extract::State;
 use axum::response::IntoResponse;
 use once_common::oauth::mtls_access_token_extension::MtlsAccessTokenExtension;
+use oxide_auth::code_grant::extensions::Pkce;
 use oxide_auth::frontends::simple::extensions::{AddonList, Extended};
 use oxide_auth_async::endpoint::access_token::AccessTokenFlow;
 use oxide_auth_axum::OAuthRequest;
@@ -15,6 +16,7 @@ pub async fn post_token(
     extensions
         .access_token
         .push(Arc::new(MtlsAccessTokenExtension));
+    extensions.access_token.push(Arc::new(Pkce::required()));
     let endpoint = Extended::extend_with(app_state.endpoint(), extensions);
     match AccessTokenFlow::prepare(endpoint) {
         Ok(mut flow) => flow

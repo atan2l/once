@@ -20,6 +20,7 @@ use oxide_auth_async::primitives::Authorizer;
 use rand::TryRngCore;
 use rand::rand_core::OsRng;
 use sha2::{Digest, Sha256};
+use std::ptr::read_volatile;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -130,19 +131,37 @@ impl Authorizer for PgAuthorizer {
             })?;
 
         let mut grant_extensions = vec![];
-        for extension in grant
+        for (extension_name, extension_value) in grant
             .extensions
             .public()
             .filter_map(|x| x.1.map(|v| (x.0, v)))
         {
             let encrypted_value =
-                Self::encrypt_value(&derived_key, extension.1.as_bytes()).ok_or(())?;
+                Self::encrypt_value(&derived_key, extension_value.as_bytes()).ok_or(())?;
             let encoded_value = BASE64_STANDARD.encode(&encrypted_value);
 
             grant_extensions.push(OAuthGrantExtension {
                 code_hash: hashed_code.clone(),
-                name: extension.0.to_owned(),
+                name: extension_name.to_owned(),
                 value: encoded_value,
+                visibility: String::from("public"),
+            });
+        }
+
+        for (extension_name, extension_value) in grant
+            .extensions
+            .private()
+            .filter_map(|x| x.1.map(|v| (x.0, v)))
+        {
+            let encrypted_value =
+                Self::encrypt_value(&derived_key, extension_value.as_bytes()).ok_or(())?;
+            let encoded_value = BASE64_STANDARD.encode(&encrypted_value);
+
+            grant_extensions.push(OAuthGrantExtension {
+                code_hash: hashed_code.clone(),
+                name: extension_name.to_owned(),
+                value: encoded_value,
+                visibility: String::from("private"),
             });
         }
 
@@ -215,9 +234,21 @@ impl Authorizer for PgAuthorizer {
                 warn!("Failed to convert decrypted value to UTF-8");
             })?;
 
-            recovered_grant
-                .extensions
-                .set_raw(extension.name, Value::Public(Some(decrypted_value)));
+            match extension.visibility.as_str() {
+                "public" => {
+                    recovered_grant
+                        .extensions
+                        .set_raw(extension.name, Value::Public(Some(decrypted_value)));
+                }
+                "private" => {
+                    recovered_grant
+                        .extensions
+                        .set_raw(extension.name, Value::Private(Some(decrypted_value)));
+                }
+                _ => {
+                    warn!("Unknown visibility for extension {:?}", extension);
+                }
+            }
         }
 
         info!(

@@ -10,9 +10,11 @@ use base64::prelude::BASE64_URL_SAFE;
 use chrono::Utc;
 use diesel::{BelongingToDsl, ExpressionMethods, Identifiable, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
+pub use openidconnect::JsonWebKeyId;
+pub use openidconnect::PrivateSigningKey;
 use openidconnect::core::CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256;
-pub use openidconnect::core::CoreRsaPrivateSigningKey;
 use openidconnect::core::{CoreIdToken, CoreIdTokenClaims};
+pub use openidconnect::core::{CoreJsonWebKeySet, CoreRsaPrivateSigningKey};
 use openidconnect::{
     Audience, EmptyAdditionalClaims, EndUserBirthday, EndUserFamilyName, EndUserGivenName,
     IssuerUrl, LanguageTag, LocalizedClaim, StandardClaims, SubjectIdentifier,
@@ -31,10 +33,14 @@ pub struct PgIssuer {
 }
 
 impl PgIssuer {
-    pub fn new(rsa_signing_key: CoreRsaPrivateSigningKey, pool: db::Pool, issuer: String) -> Self {
+    pub fn new(
+        rsa_signing_key: Arc<CoreRsaPrivateSigningKey>,
+        pool: db::Pool,
+        issuer: String,
+    ) -> Self {
         info!("Creating new PgIssuer with issuer: {}", issuer);
         Self {
-            rsa_signing_key: Arc::new(rsa_signing_key),
+            rsa_signing_key,
             pool,
             issuer,
         }
@@ -95,6 +101,13 @@ impl Issuer for PgIssuer {
             .ok_or_else(|| {
                 error!("mtls extension not found in grant extensions");
             })?;
+        let pkce_extension = grant
+            .extensions
+            .private()
+            .find_map(|x| if x.0 == "pkce" { x.1 } else { None })
+            .ok_or_else(|| {
+                error!("pkce extension not found in grant extensions");
+            });
         let deserialized_mtls_data: ClientCertData =
             serde_json::from_str(mtls_extension).map_err(|e| {
                 error!("Failed to deserialize mTLS data: {}", e);
@@ -180,12 +193,20 @@ impl Issuer for PgIssuer {
 
         debug!("Processing {} grant extensions", grant_extensions.len());
         let mut extensions = Extensions::new();
-        for grant_extension in grant_extensions {
-            debug!("Adding extension: {}", grant_extension.name);
-            extensions.set_raw(
-                grant_extension.name,
-                Value::Public(Some(grant_extension.value)),
-            )
+        for extension in grant_extensions {
+            debug!("Adding extension: {}", extension.name);
+
+            match extension.visibility.as_str() {
+                "public" => {
+                    extensions.set_raw(extension.name, Value::Public(Some(extension.value)));
+                }
+                "private" => {
+                    extensions.set_raw(extension.name, Value::Private(Some(extension.value)));
+                }
+                _ => {
+                    warn!("Unknown visibility for extension {:?}", extension);
+                }
+            }
         }
 
         let scope = base_grant.scope.parse().map_err(|e| {
