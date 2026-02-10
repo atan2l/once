@@ -20,7 +20,6 @@ use oxide_auth_async::primitives::Authorizer;
 use rand::TryRngCore;
 use rand::rand_core::OsRng;
 use sha2::{Digest, Sha256};
-use std::ptr::read_volatile;
 use uuid::Uuid;
 
 #[derive(Clone)]

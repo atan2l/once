@@ -4,8 +4,8 @@ use axum::routing::{get, post};
 
 mod jwks_json;
 mod oauth_authorization_server;
-mod token;
 mod openid_configuration;
+mod token;
 
 pub fn create_routes() -> Router<AppState> {
     Router::new()
@@ -13,6 +13,10 @@ pub fn create_routes() -> Router<AppState> {
         .route(
             "/.well-known/oauth-authorization-server",
             get(oauth_authorization_server::get_oauth_authorization_server),
+        )
+        .route(
+            "/.well-known/openid-configuration",
+            get(openid_configuration::get_openid_configuration),
         )
         .route("/token", post(token::post_token))
 }

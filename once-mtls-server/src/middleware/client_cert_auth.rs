@@ -1,7 +1,7 @@
-﻿use axum::Extension;
-use axum::extract::Request;
+﻿use axum::extract::Request;
 use axum::middleware::{AddExtension, Next};
 use axum::response::Response;
+use axum::Extension;
 use axum_server::accept::Accept;
 use axum_server::tls_rustls::RustlsAcceptor;
 use chrono::{DateTime, NaiveDateTime, Utc};
@@ -12,15 +12,12 @@ use std::io;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::server::TlsStream;
 use tower::ServiceBuilder;
-use x509_parser::asn1_rs::{Error, oid};
+use x509_parser::asn1_rs::oid;
 use x509_parser::certificate::X509Certificate;
 use x509_parser::der_parser::ber::BerObjectContent;
 use x509_parser::der_parser::parse_der;
-use x509_parser::error::X509Error;
-use x509_parser::nom::HexDisplay;
 use x509_parser::oid_registry::{OID_X509_GIVEN_NAME, OID_X509_SERIALNUMBER, OID_X509_SURNAME};
 use x509_parser::prelude::FromDer;
-use x509_parser::x509::AttributeTypeAndValue;
 
 #[derive(Clone)]
 pub struct PeerCertificates<'a>(Option<Vec<CertificateDer<'a>>>);

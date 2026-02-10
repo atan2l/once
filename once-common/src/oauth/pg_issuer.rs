@@ -101,13 +101,6 @@ impl Issuer for PgIssuer {
             .ok_or_else(|| {
                 error!("mtls extension not found in grant extensions");
             })?;
-        let pkce_extension = grant
-            .extensions
-            .private()
-            .find_map(|x| if x.0 == "pkce" { x.1 } else { None })
-            .ok_or_else(|| {
-                error!("pkce extension not found in grant extensions");
-            });
         let deserialized_mtls_data: ClientCertData =
             serde_json::from_str(mtls_extension).map_err(|e| {
                 error!("Failed to deserialize mTLS data: {}", e);
@@ -120,13 +113,13 @@ impl Issuer for PgIssuer {
 
         let mut localized_given_name = LocalizedClaim::new();
         localized_given_name.insert(
-            Some(LanguageTag::new(deserialized_mtls_data.country.clone())),
+            None,
             EndUserGivenName::new(deserialized_mtls_data.given_name.clone()),
         );
 
         let mut localized_family_name = LocalizedClaim::new();
         localized_family_name.insert(
-            Some(LanguageTag::new(deserialized_mtls_data.country.clone())),
+            None,
             EndUserFamilyName::new(deserialized_mtls_data.surname.clone()),
         );
 

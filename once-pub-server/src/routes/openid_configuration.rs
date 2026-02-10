@@ -20,10 +20,10 @@ struct OpenIdConfiguration {
 
 pub async fn get_openid_configuration() -> impl IntoResponse {
     Json(OpenIdConfiguration {
-        issuer: String::from("https://auth.castellan.systems"),
-        authorization_endpoint: String::from("https://mtls.auth.castellan.systems/authorize"),
-        token_endpoint: String::from("https://auth.castellan.systems/token"),
-        jwks_uri: String::from("https://auth.castellan.systems/.well-known/jwks.json"),
+        issuer: String::from("https://localhost:8444"),
+        authorization_endpoint: String::from("https://localhost:8443/authorize"),
+        token_endpoint: String::from("https://localhost:8444/token"),
+        jwks_uri: String::from("https://localhost:8444/.well-known/jwks.json"),
         response_types_supported: vec![String::from("code")],
         grant_types_supported: vec![String::from("authorization_code")],
         subject_types_supported: vec![String::from("public")],
@@ -31,6 +31,15 @@ pub async fn get_openid_configuration() -> impl IntoResponse {
         scopes_supported: vec![String::from("openid")],
         token_endpoint_auth_methods_supported: vec![String::from("none")],
         code_challenge_methods_supported: vec![String::from("S256")],
-        claims_supported: vec![String::from("sub")],
+        claims_supported: vec![
+            String::from("iss"),
+            String::from("sub"),
+            String::from("aud"),
+            String::from("exp"),
+            String::from("iat"),
+            String::from("given_name"),
+            String::from("family_name"),
+            String::from("birthdate"),
+        ],
     })
 }
