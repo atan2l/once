@@ -54,4 +54,5 @@ pub struct OAuthGrantExtension {
     pub code_hash: String,
     pub name: String,
     pub value: String,
+    pub visibility: String
 }

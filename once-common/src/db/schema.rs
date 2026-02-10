@@ -30,6 +30,7 @@ diesel::table! {
         code_hash -> Text,
         name -> Text,
         value -> Text,
+        visibility -> Text,
     }
 }
 

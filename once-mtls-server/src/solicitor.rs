@@ -1,5 +1,6 @@
 use askama::Template;
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use once_common::oauth::client_cert_data::ClientCertData;
 use oxide_auth::endpoint::{OwnerConsent, QueryParameter, Solicitation, WebResponse};
 use oxide_auth_async::endpoint::OwnerSolicitor;
@@ -20,6 +21,7 @@ struct AuthoriseTemplate {
     family_name: String,
     id_number: String,
     state: Option<String>,
+    date_of_birth: DateTime<Utc>,
 }
 
 impl HtmlSolicitor {
@@ -59,6 +61,7 @@ impl OwnerSolicitor<OAuthRequest> for HtmlSolicitor {
             family_name: self.client_cert_data.surname.clone(),
             id_number: self.client_cert_data.serial_number.clone(),
             state: solicitation.state().map(ToOwned::to_owned),
+            date_of_birth: self.client_cert_data.date_of_birth,
         };
 
         let html = tmpl

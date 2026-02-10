@@ -5,22 +5,25 @@ use crate::db::schema::oauth_grants::dsl::oauth_grants;
 use crate::logging::{debug, error, info, warn};
 use crate::oauth::client_cert_data::ClientCertData;
 use async_trait::async_trait;
+use base64::Engine;
+use base64::prelude::BASE64_URL_SAFE;
 use chrono::Utc;
 use diesel::{BelongingToDsl, ExpressionMethods, Identifiable, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
+pub use openidconnect::JsonWebKeyId;
+pub use openidconnect::PrivateSigningKey;
 use openidconnect::core::CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256;
 use openidconnect::core::{CoreIdToken, CoreIdTokenClaims};
+pub use openidconnect::core::{CoreJsonWebKeySet, CoreRsaPrivateSigningKey};
 use openidconnect::{
-    Audience, EmptyAdditionalClaims, EndUserFamilyName, EndUserGivenName, IssuerUrl, LanguageTag,
-    LocalizedClaim, StandardClaims, SubjectIdentifier,
+    Audience, EmptyAdditionalClaims, EndUserBirthday, EndUserFamilyName, EndUserGivenName,
+    IssuerUrl, LanguageTag, LocalizedClaim, StandardClaims, SubjectIdentifier,
 };
 use oxide_auth::primitives::grant::{Extensions, Grant, Value};
 use oxide_auth::primitives::issuer::{IssuedToken, RefreshedToken, TokenType};
 use oxide_auth_async::primitives::Issuer;
 use std::sync::Arc;
 use std::time::Duration;
-
-pub use openidconnect::core::CoreRsaPrivateSigningKey;
 
 #[derive(Clone)]
 pub struct PgIssuer {
@@ -30,10 +33,14 @@ pub struct PgIssuer {
 }
 
 impl PgIssuer {
-    pub fn new(rsa_signing_key: CoreRsaPrivateSigningKey, pool: db::Pool, issuer: String) -> Self {
+    pub fn new(
+        rsa_signing_key: Arc<CoreRsaPrivateSigningKey>,
+        pool: db::Pool,
+        issuer: String,
+    ) -> Self {
         info!("Creating new PgIssuer with issuer: {}", issuer);
         Self {
-            rsa_signing_key: Arc::new(rsa_signing_key),
+            rsa_signing_key,
             pool,
             issuer,
         }
@@ -94,10 +101,9 @@ impl Issuer for PgIssuer {
             .ok_or_else(|| {
                 error!("mtls extension not found in grant extensions");
             })?;
-        let deserialized_mtls_data: ClientCertData = serde_json::from_str(mtls_extension)
-            .map_err(|e| {
+        let deserialized_mtls_data: ClientCertData =
+            serde_json::from_str(mtls_extension).map_err(|e| {
                 error!("Failed to deserialize mTLS data: {}", e);
-                ()
             })?;
         let issuer_url = IssuerUrl::new(self.issuer.clone()).map_err(|e| {
             error!("Failed to create issuer URL: {}", e);
@@ -107,24 +113,28 @@ impl Issuer for PgIssuer {
 
         let mut localized_given_name = LocalizedClaim::new();
         localized_given_name.insert(
-            Some(LanguageTag::new(deserialized_mtls_data.country.clone())),
+            None,
             EndUserGivenName::new(deserialized_mtls_data.given_name.clone()),
         );
 
         let mut localized_family_name = LocalizedClaim::new();
         localized_family_name.insert(
-            Some(LanguageTag::new(deserialized_mtls_data.country.clone())),
+            None,
             EndUserFamilyName::new(deserialized_mtls_data.surname.clone()),
         );
 
         debug!(
-            "Building standard claims with given_name: {}, family_name: {}, country: {}",
+            "Building standard claims with given_name: {}, family_name: {}, country: {}, date_of_birth: {:?}",
             deserialized_mtls_data.given_name,
             deserialized_mtls_data.surname,
-            deserialized_mtls_data.country
+            deserialized_mtls_data.country,
+            deserialized_mtls_data.date_of_birth
         );
         let standard_claims = standard_claims.set_given_name(Some(localized_given_name));
         let standard_claims = standard_claims.set_family_name(Some(localized_family_name));
+        let standard_claims = standard_claims.set_birthdate(Some(EndUserBirthday::new(
+            deserialized_mtls_data.date_of_birth.to_rfc3339(),
+        )));
 
         let now = Utc::now();
         debug!(
@@ -133,7 +143,7 @@ impl Issuer for PgIssuer {
         );
         let id_token_claims = CoreIdTokenClaims::new(
             issuer_url,
-            vec![Audience::new(grant.client_id.clone())],
+            vec![Audience::new(grant.client_id)],
             now,
             grant.until,
             standard_claims,
@@ -149,12 +159,15 @@ impl Issuer for PgIssuer {
         )
         .map_err(|e| {
             error!("Failed to create ID token: {}", e);
-            ()
         })?;
+
+        let random_bytes = rand::random::<[u8; 32]>();
 
         info!("Successfully issued token for owner_id: {}", grant.owner_id);
         Ok(IssuedToken {
-            token: id_token.to_string(),
+            id_token: id_token.to_string(),
+            // Opaque token, not used anywhere, valid for nothing
+            token: BASE64_URL_SAFE.encode(random_bytes),
             refresh: None,
             until: grant.until,
             token_type: TokenType::Bearer,
@@ -173,21 +186,27 @@ impl Issuer for PgIssuer {
 
         debug!("Processing {} grant extensions", grant_extensions.len());
         let mut extensions = Extensions::new();
-        for grant_extension in grant_extensions {
-            debug!("Adding extension: {}", grant_extension.name);
-            extensions.set_raw(
-                grant_extension.name,
-                Value::Public(Some(grant_extension.value)),
-            )
+        for extension in grant_extensions {
+            debug!("Adding extension: {}", extension.name);
+
+            match extension.visibility.as_str() {
+                "public" => {
+                    extensions.set_raw(extension.name, Value::Public(Some(extension.value)));
+                }
+                "private" => {
+                    extensions.set_raw(extension.name, Value::Private(Some(extension.value)));
+                }
+                _ => {
+                    warn!("Unknown visibility for extension {:?}", extension);
+                }
+            }
         }
 
         let scope = base_grant.scope.parse().map_err(|e| {
             error!("Failed to parse scope: {:?}", e);
-            ()
         })?;
         let redirect_uri = base_grant.redirect_uri.parse().map_err(|e| {
             error!("Failed to parse redirect_uri: {:?}", e);
-            ()
         })?;
 
         info!(
